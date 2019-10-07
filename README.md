@@ -40,10 +40,10 @@ scrapy startproject globe
 
 This will create a `globe` folder with the following structure:
 ```
-tutorial/
+globe/
     scrapy.cfg            # deploy configuration file
 
-    tutorial/             # project's Python module, you'll import your code from here
+    globe/  /             # project's Python module, you'll import your code from here
         __init__.py
 
         items.py          # project items definition file
