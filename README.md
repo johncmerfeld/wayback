@@ -1,5 +1,7 @@
 # A primer on web scraping and the Wayback machine by John C. Merfeld
 
+**Note:** The code in this repo is for learning purposes only, and may be in an unstable state of development. For project starter code, only use examples in the README. They are guaranteed to be correct implementations, although they may not work on every system or version.
+
 ## Chapter 0: Background on scraping (August 2019)
 
 ### Introduction

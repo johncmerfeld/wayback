@@ -18,7 +18,7 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapy_wayback_machine.WaybackMachineMiddleware': 5,
 }
 
-WAYBACK_MACHINE_TIME_RANGE = (20170921, 20190921)
+WAYBACK_MACHINE_TIME_RANGE = (20170921, 20171221)
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'globe (+http://www.yourdomain.com)'
