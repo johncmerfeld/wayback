@@ -1,9 +1,6 @@
 from datetime import datetime as dt
-import scrapy
 from scrapy.spiders import Rule, CrawlSpider
 from scrapy.linkextractors import LinkExtractor
-import json, os, sys
-import pprint
 from pymongo import MongoClient
 
 class MongoDB:
