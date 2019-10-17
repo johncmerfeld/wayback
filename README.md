@@ -4,7 +4,7 @@
 
 **Sources:** The [Scrapy tutorial](https://doc.scrapy.org/en/latest/intro/tutorial.html), the [Wayback Scrapy demo](http://sangaline.com/post/wayback-machine-scraper/), Scrapy's tutorial on the [xpath traversal language](https://docs.scrapy.org/en/xpath-tutorial/topics/xpath-tutorial.html), Google's [DOM element inspector tutorial](https://developers.google.com/web/tools/chrome-devtools/dom/), Michael Herman's [Scrapy CrawlSpider blog post](https://mherman.org/blog/recursively-scraping-web-pages-with-scrapy/) the [PyMongo tutorial](https://realpython.com/introduction-to-mongodb-and-python/), and countless [Stack Overflow posts](https://stackoverflow.com/questions/tagged/scrapy).
 
-## Chapter 0: Background on scraping (August 2019)
+## Chapter 0: Background on scraping
 
 ### Introduction
 The internet is a network of computers. It's called the "inter-net" because it was first created as a way to link several computer networks of universities, governments, and private companies all over the United States. To oversimplify things, let's pretend that everybody gets one computer to connect to this network. By "everybody," I mean that you get one computer, I get one computer, Google gets one, Facebook gets one, the City of Boston gets one, etc. So any exchange of information between any two entities is going through their two machines (this actually isn't a drastic oversimplification, but it does make the following descriptions a lot more concise).
@@ -30,7 +30,7 @@ It turns out the answer is yes. The [scrapy-wayback-machine](https://github.com/
 
 Our goal, then, should be to map out the HTML structure of Boston's news websites, so that we can write spiders that can crawl them throughout our desired time span and write the results into a searchable local database, on which we can perform text mining analysis.
 
-## Chapter 1: A simple scraper (September 2019)
+## Chapter 1: A simple scraper
 
 My goal is for this to work if all the steps are followed; it may be enough of a springboard to get you going.
 
@@ -153,7 +153,7 @@ Its default behavior is to append to an existing JSON file, also. So make sure y
 
 We have more to discuss about the ethics of scraping and all that. But for now, just try to get this working and see if you can modify the code to get different data from the site, or even branch off onto other sites!
 
-## Chapter 2: Adding a spider (October 2019)
+## Chapter 2: Adding a crawler and database to our scraper
 
 There is plenty of useful information on the top-level pages of news sites, which are updated frequently. However, to get at the raw text content of individual articles, we need to traverse the site dynamically. If we looked at the layout of, say, [WGBH's website](https://www.wgbh.org), it would look like a tree, with the homepage at the root and several category pages Programs, News, and Arts & Culture one level down. These pages' location in the tree is fixed, but their content is updated frequently to link to new **leaves** on the tree, which represent articles.
 
@@ -163,9 +163,7 @@ A program that does this link-traversal is called a "spider," and it is the mech
 
 What are some of these difficulties? The primary issue is knowing which links to use. Web pages, especially on commercial sites, often contain dozens of links to irrelevant pages, such as advertisers, sources, or simply pages on the site itself that are not useful. Other links may appear multiple times on the same page, or they may be relative URL links that the scraper cannot use to fetch a new page.
 
-But let's start simple and see where we go. We can use WGBH as our motivating example.
-
-### What can we reuse from our Chapter 1 code?
+But let's start simple and see where we go. Using WGBH as our new motivating example, what code can be reused from Chapter 1?
 
 Not as much as I originally hoped, but that's okay! The good news is that we can keep our Scrapy project's existing structure. We'll still define a `Scrapy.Spider` class in Python and run it from the command line. It will use the same `settings.py` and nothing about the Wayback instructions needs to change (unless we want to scrape a different time window). But two major things will change: first, we need to write a different set of rules for how the Spider will gather content, and we should probably write the results down into a database instead of simply appending to a file. These are both significant improvements on the substance of our code, but neither requires many extra lines of code.
 
@@ -179,8 +177,8 @@ Since it inherits from `Scrapy.Spider`, we can define it identically to our Chpa
 from datetime import datetime as dt
 from scrapy.spiders import CrawlSpider # different imports
 
-                # different class (scrapy is implied by import)
-class GlobeSpider(CrawlSpider):
+# different class name and type (scrapy is implied by import)
+class WGBHCrawler(CrawlSpider):
     name = 'wgbhcrawler' # new name
 
     def start_requests(self):
@@ -212,7 +210,7 @@ Notice in the code above where we tell the spider to only visit one page: `yield
 start_urls = ['https://www.wgbh.org/news/local-news']
 ```
 
-Notice from the syntax that we could actually define this as a list of starting URLS. We may want to do this later, but for now, let's just use the one. We also want to add an instruction for the spider to stay on WGBH's website:
+Notice from the syntax that we could actually define this as a list of starting URLS. We may want to do this later, but for now, let's just use the one. We also want to add an instruction for the spider to stay on WGBH's website. Using our previous "single computer" metaphor for the internet, this basically tells Scrapy to only accept links to pages from WGBH's computer:
 
 ```
 allowed_domains = ["wgbh.org"]
@@ -246,9 +244,8 @@ from datetime import datetime as dt
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 
-                # different class (scrapy is implied by import)
-class GlobeSpider(CrawlSpider):
-    name = 'wgbhcrawler' # new name
+class WGBHCrawler(CrawlSpider):
+    name = 'wgbhcrawler'
 
     start_urls = ['https://www.wgbh.org/news/local-news']
     allowed_domains = ["wgbh.org"]
@@ -266,8 +263,11 @@ class GlobeSpider(CrawlSpider):
                 try:
                     text = paragraph.xpath('text()').getall()
                     items.append(text)
+
                 except:
                     pass
+
+        # we'd probably want to add some information to this object, like the article title, author, etc.
 
         if len(items) > 0:
             timestamp = response.meta['wayback_machine_time'].timestamp()
@@ -281,13 +281,138 @@ This code looks pretty good! We can run it with a command similar to the one we 
 scrapy crawl wgbhcrawler -o articletext.json
 ```
 
-### What's wrong with writing to a JSON file
+### Can we do better than writing to a JSON file?
 
-If we let the above code run for the timespan we specified in `settings.py`, it will produce a potentially enormous JSON object of key value pairs that looks like
+If we let the above code run for the timespan we specified in `settings.py`, it will produce a potentially enormous JSON array of key value pairs that looks like
 
 ```
-{timestamp: whatever_the_wayback_machine_says,
- text}
+[
+  {timestamp:   <whatever_the_wayback_machine_says>,
+        text:   [
+          <first paragraph>,
+          <second paragraph>,
+          <third paragraph>,
+          ...,
+        ],
+  },
+...,
+]
 ```
 
-### What's the deal with MongoDB?
+There is nothing semantically incorrect about this approach. We can use Python or some other language to load this file and search it for terms of interest.
+
+But... let's remember how big this file could get. Assuming we scrape multiple years' worth of data from multiple websites, we're now talking about several files containing thousands of objects, each of which contains its own array of many-word paragraphs. Even if loaded into a list of dictionary objects in Python, this would be  difficult to search, not to mention slow. Fortunately, there is a relatively straightforward solution in the form of MongoDB.
+
+To fully understand the advantages of a database over raw files --or to fully describe MongoDB and how it differs from traditional database software-- is beyond the scope of this document. Suffice to say that MongoDB is all of the following:
+  - a database designed to store and search for JSON-like objects
+  - easy to install and run
+  - easy to link to Python
+  - well-documented online
+
+Therefore, instead of instructing our spider to write to a JSON file at the command line, we will add a MongoDB database client into the spider code itself. As in chapter 1, I will attempt to describe the installation process as succinctly as possible.
+
+For those familiar with relational (SQL) databases, MongoDB has a similar overall structure but different syntax.
+
+**TODO downloading mongodb, talk about the `mongod` daemon, mention that we can run it from the command line but we'll do that after we have the data**
+
+The last piece to install is the `PyMongo` module for connecting to our database server from within Python. There are other MongoDB Python libraries that you may find easier to use, but this is the one published by the MongoDB developers and even though it is relatively low-level, it's still quite simple to use. We can install it with pip:
+```
+pip install pymongo
+```
+
+PyMongo allows us to establish connections to the `mongod` daemon listening on port 27017. The best way to do this from a performance standpoint is to create a persistent connection that Python accesses via a "client," so that the connection doesn't need to be recreated every time. We only need a few lines of code to do this:
+
+```
+from pymongo import MongoClient
+
+class MongoDB:
+
+    def __init__(self):
+        self.db = MongoClient("mongodb://localhost:27017/")
+
+    def get_database(self):
+        return self.db
+
+    def get_client(self, db_name):
+        return self.db[db_name]
+```
+
+Now all we need to do is add an instance of a `MongoDB` class as a member object of our `WGBHCrawler` class. Our `parse_items()` function can use it to insert records into a collection of documents instead of writing directly to the file!
+
+Putting it all together, we add our client class and database calls to the Scrapy file. This assumes our MongoDB server is already running:
+
+```
+from datetime import datetime as dt
+from scrapy.spiders import CrawlSpider, Rule
+from scrapy.linkextractors import LinkExtractor
+from pymongo import MongoClient
+
+class MongoDB:
+    def __init__(self):
+        self.db = MongoClient("mongodb://localhost:27017/")
+
+    def get_database(self):
+        return self.db
+
+    def get_client(self, db_name):
+        return self.db[db_name]
+
+class WGBHCrawler(CrawlSpider):
+    name = 'wgbhcrawler'
+
+    start_urls = ['https://www.wgbh.org/news/local-news']
+    allowed_domains = ["wgbh.org"]
+
+    db_client = MongoDB()
+
+    rules = (
+          Rule(LinkExtractor(allow = (), restrict_xpaths = ('//ul[@class="FourUp-Items-Item"]')),
+          callback = "parse_items",
+          follow = True),
+    )
+
+    def parse_items(self, response):
+        items = []
+
+        for paragraph in response.xpath('//div[@class="RichTextArticleBody-body"]/p'):
+                try:
+                    text = paragraph.xpath('text()').getall()
+                    items.append(text)
+
+                except:
+                    pass
+
+        # we'd probably want to add some information to this object, like the article title, author, etc.
+
+        if len(items) > 0:
+              db = self.db_client.get_client(self.db_name)
+              collection = db[self.collection_name]
+              timestamp = response.meta['wayback_machine_time'].timestamp()
+
+              document = {'timestamp': timestamp, 'items': items}
+              result = collection.insert_one(document)
+
+```
+
+Some comments on this code: You'll notice that it doesn't ever explicitly name the database or collection we should write to; it simply uses the values stored in `self.db_name` and `self.collection_name`. These are better left to the user to decide, since they may differ from crawl to crawl. Scrapy allows additional arguments to be specified at runtime, and they will automatically be added as member objects (e.g. `self.db_name`) to our `WGBHCrawler` class.
+a
+```
+scrapy crawl wgbhcrawler -a db_name=wgbh_db -a collection_name=wgbh_stories
+```
+
+One syntactical benefit of MongoDB is that it will allow us to write to a database and collection whether or not they already exist (if not, it will create them), so the above command will work no matter what names we enter.
+
+Also, pay attention to the last line in `parse_items()` **TODO**...
+
+I plan to write more about analyzing this data in Chapter 3, but for now let's just take a look at our mongoDB database at the command line and make sure articles are getting written to it. You'll need to open 3 separate terminal windows/tabs to run this:
+
+```
+# window 1, instnatiate the MongoDB server:
+mongod
+
+# window 2, run the scraper and write to the database:
+scrapy crawl wgbhcrawler -a db_name=wgbh_db -a collection_name=wgbh_stories
+
+# window 3, run the Mongo shell and look at the database:
+mongo
+```
