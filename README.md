@@ -4,6 +4,8 @@
 
 **Sources:** The [Scrapy tutorial](https://doc.scrapy.org/en/latest/intro/tutorial.html), the [Wayback Scrapy demo](http://sangaline.com/post/wayback-machine-scraper/), Scrapy's tutorial on the [xpath traversal language](https://docs.scrapy.org/en/xpath-tutorial/topics/xpath-tutorial.html), Google's [DOM element inspector tutorial](https://developers.google.com/web/tools/chrome-devtools/dom/), Michael Herman's [Scrapy CrawlSpider blog post](https://mherman.org/blog/recursively-scraping-web-pages-with-scrapy/) the [PyMongo tutorial](https://realpython.com/introduction-to-mongodb-and-python/), and countless [Stack Overflow posts](https://stackoverflow.com/questions/tagged/scrapy).
 
+In addition, [Saransh Jain](https://github.com/saranshjain1) taught me a ton about scraping, HTTP, and database clients, and his coding style makes up the foundation of these scripts.
+
 ## Chapter 0: Background on scraping
 
 ### Introduction
