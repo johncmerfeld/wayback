@@ -235,9 +235,9 @@ rules = (
 
 This code should be pretty self-explanatory if you've been following the document up until now. One component that may look new is the `callback` parameter. This tells Scrapy which function to use when parsing the `Response` object it gets back after requesting the content of the links at finds inside the `story` elements. In this case, the spider is supposed to use a function called `parse_items()`, which we will define. We've actually used callback functions before; our `parse()` function in the Chapter 1 code was an example of a callback function. We just didn't have to supply it to the `Scrapy.Request` function because it is the default callback function that every spider will try to use. However, when using a `CrawlSpider`, there is a `parse()` function already defined, so we need to define ours with a different name.
 
-(*Note: One wrinkle with all of this that bears mentioning now -- the structures of these sites can and do change. You need to make sure that pages actually look the way your spider thinks they do throughout the time period you're trying to scrape*
+(*Note: One wrinkle with all of this that bears mentioning now -- the structures of these sites can and do change. You need to make sure that pages actually look the way your spider thinks they do throughout the time period you're trying to scrape*)
 
-Let's put all of these changes together and see what our spider looks like. I've defined the `parse_items()` method already, but you should look at an article page to see where this `XPath` came from. I'll also remove parts of the code that we no longer need:
+Let's put all of these changes together and see what our spider looks like. I've defined the `parse_items()` method already, but you should look at an article page to see where this `XPath` came from. The `DEPTH_LIMIT` parameter is just a safety mechanism to make sure the spider doesn't fetch a bunch of duplicate articles that are linked to from within stories. I'll also remove parts of the code that we no longer need:
 
 ```
 from datetime import datetime as dt
