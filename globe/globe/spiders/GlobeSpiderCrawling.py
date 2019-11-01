@@ -45,6 +45,8 @@ class GlobeSpiderCrawler(CrawlSpider):
                 items.append(text)
             except:
                 pass
+            
+            
 
         if len(items) > 0:
             #db = self.db_client.get_client('globe_stories_db')

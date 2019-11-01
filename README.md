@@ -463,3 +463,40 @@ This will list out the available databases, including `globe_db`. Let's enter it
 ```
 
 If you use a command like `db.globe_stories.find()`, you'll actually see all of the text you scraped. But that's an exercise for Chapter 3!
+
+## Chapter 3: Performing analysis on a text dump in MongoDB
+
+```
+var map = function() {  
+    var items = this.items;
+    if (items) {
+      for (var i = 0; i < items.length; i++) {
+        for (var j = 0; j < items[i].length; j++) {
+          words = items[i][j].split(" ");
+          for (var k = 0; k < words.length; k++) {
+            if (words[k])  {
+              emit(words[k], 1);
+            }
+          }
+        }
+      }
+    }
+};
+
+var reduce = function(key, values ) {    
+    var count = 0;    
+    values.forEach(function(v) {            
+        count += v;    
+    });
+    return count;
+}
+
+// full thing
+// db.support_emails.mapReduce(map, reduce, { out: "word_count" })
+
+// subset
+db.globe_stories.mapReduce(map, reduce, {limit: 1000, out: "word_count" })
+db.word_count.find().sort({ value: -1 }).limit(10)
+
+
+```
