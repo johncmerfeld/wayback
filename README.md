@@ -2,7 +2,7 @@
 
 **Note:** The code in this repo is for learning purposes only, and may be in an unstable state of development. For project starter code, only use examples in the README. They are guaranteed to be correct implementations, although they may not work on every system or version.
 
-**Sources:** The [Scrapy tutorial](https://doc.scrapy.org/en/latest/intro/tutorial.html), the [Wayback Scrapy demo](http://sangaline.com/post/wayback-machine-scraper/), Scrapy's tutorial on the [xpath traversal language](https://docs.scrapy.org/en/xpath-tutorial/topics/xpath-tutorial.html), Google's [DOM element inspector tutorial](https://developers.google.com/web/tools/chrome-devtools/dom/), Michael Herman's [Scrapy CrawlSpider blog post](https://mherman.org/blog/recursively-scraping-web-pages-with-scrapy/) the [PyMongo tutorial](https://realpython.com/introduction-to-mongodb-and-python/), and countless [Stack Overflow posts](https://stackoverflow.com/questions/tagged/scrapy).
+**Sources:** The [Scrapy tutorial](https://doc.scrapy.org/en/latest/intro/tutorial.html), the [Wayback Scrapy demo](http://sangaline.com/post/wayback-machine-scraper/), Scrapy's tutorial on the [xpath traversal language](https://docs.scrapy.org/en/xpath-tutorial/topics/xpath-tutorial.html), Google's [DOM element inspector tutorial](https://developers.google.com/web/tools/chrome-devtools/dom/), Michael Herman's [Scrapy CrawlSpider blog post](https://mherman.org/blog/recursively-scraping-web-pages-with-scrapy/) the [PyMongo tutorial](https://realpython.com/introduction-to-mongodb-and-python/), the [MongoDB MapReduce documentaiton](https://docs.mongodb.com/manual/core/map-reduce/), and countless [Stack Overflow](https://stackoverflow.com/questions/tagged/scrapy) and [Github](https://gist.github.com/glamp/942a46b7b29bb447805f) posts.
 
 In addition, [Saransh Jain](https://github.com/saranshjain1) taught me a ton about scraping, HTTP, and database clients, and his coding style makes up the foundation of these scripts.
 
@@ -472,7 +472,7 @@ var map = function() {
     if (items) {
       for (var i = 0; i < items.length; i++) {
         for (var j = 0; j < items[i].length; j++) {
-          words = items[i][j].split(" ");
+          words = items[i][j].split(/\W+/);
           for (var k = 0; k < words.length; k++) {
             if (words[k])  {
               emit(words[k], 1);
@@ -500,3 +500,15 @@ db.word_count.find().sort({ value: -1 }).limit(10)
 
 
 ```
+
+city_list = [...]
+for story in stories:
+  cities_about = []
+  for sentence in story:
+    for word in sentence:
+      if city_list contains word:
+        add word to cities_about
+  for sentence in story:
+    for word in sentence:
+      for city in cities_about:
+        add {word : 1} to city_list[city]
