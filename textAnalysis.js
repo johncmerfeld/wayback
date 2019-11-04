@@ -1,11 +1,18 @@
+var city_list = ['Boston', 'Jamaica']
+
+// warning, this does not work correctly but it might do something partially correctly
 var map = function() {
-    var items = this.items;
-    if (items) {
-      for (var i = 0; i < items.length; i++) {
-        for (var j = 0; j < items[i].length; j++) {
-          words = items[i][j].split(/\W+/);
+    var stories = this.items;
+    if (stories) {
+      for (var story = 0; story < stories.length; i++) {
+        var keys = [];
+        for (var sentence = 0; sentence < stories[story].length; j++) {
+          words = stories[story][sentence].split(/\W+/);
           for (var k = 0; k < words.length; k++) {
             if (words[k])  {
+              if (city_list.includes(words[k]) {
+                keys.push(words[k])
+              }
               emit(words[k], 1);
             }
           }
