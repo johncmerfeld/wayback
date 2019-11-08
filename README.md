@@ -512,3 +512,12 @@ for story in stories:
     for word in sentence:
       for city in cities_about:
         add {word : 1} to city_list[city]
+
+
+Tracking changes:
+  - Changed insert_one to update(... upsert = True)
+  - Added list flattener
+  - Add tagging function
+  - Change structure of MongoDB documents
+  - Added *preliminary* list of neighborhoods
+    - Think about doing more analysis this way
