@@ -6,6 +6,7 @@ import re
 
 def getTags(s):
     
+    # NOTE: THIS IS NOT AN EXHAUSTIVE LIST OF GEOGRAPHIES IN BOSTON
     neighborhoods = ['Allston', 'Brighton', 'Back Bay', 'North End', 'Roxbury',
                      'Bay Village', 'Beacon Hill', 'Charlestown', 'Chinatown',
                      'Dorchester', 'Downtown', 'East Boston', 'Kenmore', 'Fenway',
@@ -46,7 +47,7 @@ class GlobeSpiderCrawler(CrawlSpider):
     start_urls = ['https://www.bostonglobe.com/metro']
 
     custom_settings = {
-        'DEPTH_LIMIT': 5
+        'DEPTH_LIMIT': 2
     }
     rules = (
         Rule(LinkExtractor(allow = (), restrict_xpaths = ('//div[@class="story"]')),
@@ -59,6 +60,7 @@ class GlobeSpiderCrawler(CrawlSpider):
         tags = []
 
         for paragraph in response.xpath('//div[@class="article-text"]/p'):
+        //*[@id="post-1836861"]/div/div/div[2]/div
             try:
                 text = paragraph.xpath('text()').getall()
                 items.append(text)
@@ -71,7 +73,7 @@ class GlobeSpiderCrawler(CrawlSpider):
         story = story.replace('\n\t ','')
         story = story.replace('\t ','')
         story = story.replace('\n ','')
-        
+        story = story.lower()
         
         tags = getTags(story)
         
@@ -81,14 +83,15 @@ class GlobeSpiderCrawler(CrawlSpider):
             db = self.db_client.get_client(self.db_name)
             timestamp = response.meta['wayback_machine_time'].timestamp()
 
-            collection = db[self.collection_name]
+            master_collection = db[self.collection_name]
             document = {'timestamp': timestamp, 'story': story}
             
-            count = collection.count_documents({'story': {'$in': [story]}})
+            count = master_collection.count_documents({'story': {'$in': [story]}})
             # primitive duplicate handling
             if count == 0:
                 
-                collection.insert_one(document)
+                # always insert into master
+                master_collection.insert_one(document)
                 for tag in tags:
                     collection_by_tag = db[tag.lower().replace(" ", "_")]
                     collection_by_tag.insert_one(document)

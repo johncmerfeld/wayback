@@ -142,14 +142,16 @@ On Safari or Chrome, you can right-click the title and select "Inspect" or "Insp
 
 ![Web inspector](images/inspector.png)
 
-If you right-click that element in the inspector (or to the blank area just to the right of the text), you should see an option to `Copy->XPath`, which will add the full or relative XPath to your clipboard, and you can insert it into your scraping script! **This takes a ton of time and guesswork out of the scraping process, and I highly recommend you do it this way instead of combing through the HTML yourself, which can be especially complicated on commercial websites.**
+*Deprecated note: If you right-click that element in the inspector (or to the blank area just to the right of the text), you should see an option to `Copy->XPath`, which will add the full or relative XPath to your clipboard, and you can insert it into your scraping script! This takes a ton of time and guesswork out of the scraping process, and I highly recommend you do it this way instead of combing through the HTML yourself, which can be especially complicated on commercial websites.*
+
+**Actual note:** While you can use `Copy->XPath` to get your computer's interpretation of the XPath, I don't actually recommend you do it. By all means, do use `Select Element` to find the div you want inside the web inspector, but when it comes to pasting a path into your Scrapy code, I would do something more like `'//div[@class='whatever']'`. The `//` tells Scrapy to ignore all elements of the DOM tree until it gets to the div you're referring to. In most cases, this div will be unique so there's no need to specify further, although if you need to be more specific, you could do something like `'//parent/div[@class='whatever']'`.
 
 ### Some final thoughts
 This tool is finicky. Scrapy can be hard to debug (please use me as a resource), and with the Wayback scraper in particular, if you screw something up, it will keep trying to scrap each timestamp of the website. If something looks amiss, kill the process with Control-c or Control-/. On the other hand, it's a really impressive piece of software that works hard and runs reliably. Once you figure out a site's HTML structure, gathering your data is as simple as running the `runspider` command.
 
 Stack Overflow is your friend!!
 
-Its default behavior is to append to an existing JSON file, also. So make sure you don't have results from two seperate scrapes in teh same file!
+Its default behavior is to append to an existing JSON file, also. So make sure you don't have results from two separate scrapes in the same file!
 
 **Big note**: Nothing I just did here directly pertains to the data you're looking for. The flow of your program will need to be more sophisticated-- it should look at specific sections of these news sites, find links to the individual stories, and then pull down the text of those stories. There's room to get creative here; you can use the site's own tagging and timestamps as auxillary data points in your analysis.
 
@@ -466,6 +468,122 @@ If you use a command like `db.globe_stories.find()`, you'll actually see all of 
 
 ## Chapter 3: Performing analysis on a text dump in MongoDB
 
+**Note** This section is more explicitly geared toward the NAACP teams, but the overall strategy (and especially the code) can be used for any sort of tagged-story approach.
+
+Okay, so let's assume we've done everything up until now. When we left off, we had a wayback scraper writing groups of paragraphs to a MongoDB database.
+
+To make a long story short, there are a number of improvements we need to implement to get ready to do our text analysis. I'll discuss them quickly (but the code below should also serve as a reference):
+
+  1. **Cleaning the input:** The chapter 2 code generated MongoDB documents of the form `{"_id": <some id>, "timestamp": <some timestamp>, "items": [ [some list of lists]]}`. This gets unruly very quickly, so we can use some little Pythonic code to flatten the nested list into a single string for each story. Then, we should remove extraneous newline and tab characters (`\n` and `\t`) and turn the entire string into lowercase (so that word counting works better).
+  2. **Tagging the input:** We need to know which neighborhood each story is about, so we can add a tagging function to look in each story for any mention of a neighborhood. *This part of the demo code is incomplete and is just there for proof of concept. Picking the actual list of neighborhoods will require more serious thought.*
+  3. **Checking for duplicates:** To try to keep the resulting dataset as clean as possible, we should a duplicate checker (basically, query our database for an identical story, and if it exists, don't insert this new one). I think this slows down the code significantly, but it's good for the overall hygene of our analysis.
+  4. **Changing the database structure:** This is the most consequential change. Instead of adding the tags as a document field (i.e. `"tags": ["Back Bay", "Roxbury", ...]`), the *easiest* thing to do is to insert the stories into **separate collections based on their tags**. So there's a master collection that gets a copy of every story, but then each neighborhood gets its own collection for stories that mention that neighborhood. From a data architecture standpoint, this is kind of crazy, since it introduces a ton of duplicate records into the system as a whole. However, it makes the ensuing analysis a lot easier as long as we're careful.
+
+So our new scraper code looks like this:
+```
+from datetime import datetime as dt
+from scrapy.spiders import Rule, CrawlSpider
+from scrapy.linkextractors import LinkExtractor
+from pymongo import MongoClient
+import re
+
+def getTags(s):
+
+    # NOTE: THIS IS NOT AN EXHAUSTIVE LIST OF GEOGRAPHIES IN BOSTON
+    neighborhoods = ['Allston', 'Brighton', 'Back Bay', 'North End', 'Roxbury',
+                     'Bay Village', 'Beacon Hill', 'Charlestown', 'Chinatown',
+                     'Dorchester', 'Downtown', 'East Boston', 'Kenmore', 'Fenway',
+                     'Hyde Park', 'Jamaica Plain', 'Mattapan', 'Mission Hill',
+                     'Roslindale', 'South Boston', 'South End', 'West End',
+                     'West Roxbury', ]   
+
+    tags = []
+
+    for neighborhood in neighborhoods:
+        if bool(re.search(neighborhood, s)):
+            tags.append(neighborhood)
+
+    return tags
+
+class MongoDB:
+    """
+    we need to create a single persistent connection to database.
+
+    Everytime a client calls us, we can simply return the connection instead of creating
+    it again and again.
+    """
+    def __init__(self):
+        self.db = MongoClient("mongodb://localhost:27017/")
+
+    def get_database(self):
+        return self.db
+
+    def get_client(self, db_name):
+        return self.db[db_name]
+
+class GlobeSpiderCrawler(CrawlSpider):
+    name = 'globecrawler'
+
+    db_client = MongoDB()
+
+    allowed_domains = ["bostonglobe.com"]
+    start_urls = ['https://www.bostonglobe.com/metro']
+
+    custom_settings = {
+        'DEPTH_LIMIT': 2
+    }
+    rules = (
+        Rule(LinkExtractor(allow = (), restrict_xpaths = ('//div[@class="story"]')),
+        callback = "parse_items",
+        follow = True),
+    )
+
+    def parse_items(self, response):
+        items = []
+        tags = []
+
+        for paragraph in response.xpath('//div[@class="article-text"]/p'):
+        //*[@id="post-1836861"]/div/div/div[2]/div
+            try:
+                text = paragraph.xpath('text()').getall()
+                items.append(text)
+            except:
+                pass
+
+        # tag and clean the story
+        flat_items = [item for sublist in items for item in sublist]
+        story = " ".join(flat_items)
+        story = story.replace('\n\t ','')
+        story = story.replace('\t ','')
+        story = story.replace('\n ','')
+        story = story.lower()
+
+        tags = getTags(story)
+
+
+        if len(items) > 0:
+
+            db = self.db_client.get_client(self.db_name)
+            timestamp = response.meta['wayback_machine_time'].timestamp()
+
+            master_collection = db[self.collection_name]
+            document = {'timestamp': timestamp, 'story': story}
+
+            count = master_collection.count_documents({'story': {'$in': [story]}})
+            # primitive duplicate handling
+            if count == 0:
+
+                # always insert into master
+                master_collection.insert_one(document)
+                for tag in tags:
+                    collection_by_tag = db[tag.lower().replace(" ", "_")]
+                    collection_by_tag.insert_one(document)
+
+            return document
+
+```
+
+
 ```
 var map = function() {  
     var items = this.items;
@@ -517,6 +635,8 @@ for story in stories:
 Tracking changes:
   - Changed insert_one to update(... upsert = True)
   - Added list flattener
+  - Added string cleaner
+  - Changed from insert to update with $in
   - Add tagging function
   - Change structure of MongoDB documents
   - Added *preliminary* list of neighborhoods

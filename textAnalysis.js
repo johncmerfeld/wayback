@@ -1,3 +1,8 @@
+/*
+  MongoDB can run JavaScript. Just run this in the shell
+
+*/
+
 // The map function reads the text and creates a bunch of intermediate key-value files.
 // In this case, the key is the word and the value is '1'
 var map = function() {
