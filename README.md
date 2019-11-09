@@ -470,7 +470,7 @@ If you use a command like `db.globe_stories.find()`, you'll actually see all of 
 
 ## Chapter 3: Performing analysis on a text dump in MongoDB
 
-**Note** This section is more explicitly geared toward the NAACP teams, but the overall strategy (and especially the code) can be used for any sort of tagged-story approach.
+**Note:** This section is more explicitly geared toward the NAACP teams, but the overall strategy (and especially the code) can be used for any sort of tagged-story approach.
 
 Okay, so let's assume we've done everything up until now. When we left off, we had a wayback scraper writing groups of paragraphs to a MongoDB database.
 
