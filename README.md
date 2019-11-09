@@ -32,6 +32,8 @@ It turns out the answer is yes. The [scrapy-wayback-machine](https://github.com/
 
 Our goal, then, should be to map out the HTML structure of Boston's news websites, so that we can write spiders that can crawl them throughout our desired time span and write the results into a searchable local database, on which we can perform text mining analysis.
 
+**Important note on the ethics of scraping**: The jury is [literally still out](https://www.theverge.com/2019/9/10/20859399/linkedin-hiq-data-scraping-cfaa-lawsuit-ninth-circuit-ruling) on whether web scraping constitutes "unauthorized access" under the Computer Fraud and Abuse Act. My personal opinion is that if you post something on a public website, you shouldn't cry foul when somebody's computer comes and looks at it. That being said, many websites have specific terms that say they don't want to be scraped, and if you don't respect those terms, there are steps they can take to cut off your access. For that reason, scraping with the Wayback Machine is *much safer* than scraping a site directly, since the content is hosted on the Internet Archive's servers. That means that whoever originally posted the content has no way of knowing that you're accessing it; in fact, the Wayback Machine exists for the explicit purpose of documenting what is posted online for informational purposes. So while I believe that web scraping is a perfectly ethical thing to do, I'm telling you that the safest way to do it --if possible-- is with the Wayback Machine.
+
 ## Chapter 1: A simple scraper
 
 My goal is for this to work if all the steps are followed; it may be enough of a springboard to get you going.
@@ -583,61 +585,63 @@ class GlobeSpiderCrawler(CrawlSpider):
 
 ```
 
+We can run this the same way we did above, but we should name a new database:
+```
+# in one window
+mongod
+# in another
+scrapy crawl globecrawler -a db_name=globe_db_by_neighborhood -a collection_name=master_copy
+```
+
+We'll let this run for a while and then open up MongoDB to do some analysis
+
+### What should the analysis look like? (**Also, again, cannot stress this enough, this is geared specifically at the NAACP projects, although the techniques may be useful for other projects**)
+
+The easiest way to analyze text is by doing a word count. Word counting can take many forms, some more complex and subtle than others. For now, I'm just going to talk about how to do it at its most basic level in MongoDB -- which I still believe will be an extremely powerful analytical tool.
+
+So, the short answer is that MongoDB can run JavaScript code, and while we could write our own function for going through a collection and making a data structure mapping each unique word to the number of times it appears in the text, MongoDB provides a convenient framework for us that takes care of most of the hard parts. It's called [MapReduce](https://en.wikipedia.org/wiki/MapReduce).
+
+MapReduce is a really cool programming model that I don't have time to get into in too much detail. Suffice to say that a MapReduce library handles all of the difficult parts of a large processing job and leaves only two functions for the programmer to write. They are... `Map()`` and `Reduce()`. In the `Map()` step, you take pieces of raw input (such as an entire scraped story, for example) and perform some processing. The output is a set of key value pairs (in the case of word counting, the key is an individual word and the value is 1). You don't have to worry about where this intermediate data are stored. `Reduce()` then, takes every matching set of keys and "reduces" them down to a single record. In this case, it adds up the count (always 1) of each key. The result is a new collection that stores (word, count) pairs for every unique word in every story!
+
+Here's what your `Map()` and `Reduce()` functions should look like:
 
 ```
-var map = function() {  
-    var items = this.items;
-    if (items) {
-      for (var i = 0; i < items.length; i++) {
-        for (var j = 0; j < items[i].length; j++) {
-          words = items[i][j].split(/\W+/);
-          for (var k = 0; k < words.length; k++) {
-            if (words[k])  {
-              emit(words[k], 1);
-            }
-          }
-        }
+var map = function() {
+  var story = this.story;
+
+  if (story) {
+    words = story.split(/\W+/);
+    for (var i = 0; i < words.length; i++) {
+      if (words[i]) {
+        emit(words[i], 1);
       }
     }
+  }
 };
 
-var reduce = function(key, values ) {    
-    var count = 0;    
-    values.forEach(function(v) {            
-        count += v;    
-    });
-    return count;
+var reduce = function(key, values ) {
+
+  var count = 0;
+
+  values.forEach(function(v) {
+    count += v;
+  })
+  return count;
 }
-
-// full thing
-// db.support_emails.mapReduce(map, reduce, { out: "word_count" })
-
-// subset
-db.globe_stories.mapReduce(map, reduce, {limit: 1000, out: "word_count" })
-db.word_count.find().sort({ value: -1 }).limit(10)
-
-
 ```
 
-city_list = [...]
-for story in stories:
-  cities_about = []
-  for sentence in story:
-    for word in sentence:
-      if city_list contains word:
-        add word to cities_about
-  for sentence in story:
-    for word in sentence:
-      for city in cities_about:
-        add {word : 1} to city_list[city]
+The last thing you should do is implement a loop in MongoDB to run these over every sub-collection, so that you get a distinct word count of the corpus as a whole and one for each of the neighborhoods.
 
+```
+// We want to do a seperate word count for each neighborhood
+db.getCollectionNames().forEach(function(col) {
+  try { // run our map function, our reduce function, and write the results to a unique word count output table
+    db[col].mapReduce(map, reduce, { out: "wc_" + col})
+  }
+  catch(err) {
+    print(err)
+  }
+})
+```
 
-Tracking changes:
-  - Changed insert_one to update(... upsert = True)
-  - Added list flattener
-  - Added string cleaner
-  - Changed from insert to update with $in
-  - Add tagging function
-  - Change structure of MongoDB documents
-  - Added *preliminary* list of neighborhoods
-    - Think about doing more analysis this way
+For our analysis, we can compare the counts of certain words or phrases in different parts of the city!
