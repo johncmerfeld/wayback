@@ -644,4 +644,7 @@ db.getCollectionNames().forEach(function(col) {
 })
 ```
 
+The result should be a set of collections by neighborhood with a corresponding word count collection, like this:
+![List of collections](images/tables.png)
+
 For our analysis, we can compare the counts of certain words or phrases in different parts of the city!
