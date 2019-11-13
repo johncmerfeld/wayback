@@ -60,7 +60,6 @@ class GlobeSpiderCrawler(CrawlSpider):
         tags = []
 
         for paragraph in response.xpath('//div[@class="article-text"]/p'):
-        //*[@id="post-1836861"]/div/div/div[2]/div
             try:
                 text = paragraph.xpath('text()').getall()
                 items.append(text)
