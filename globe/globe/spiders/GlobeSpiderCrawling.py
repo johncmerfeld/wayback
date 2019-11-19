@@ -72,9 +72,9 @@ class GlobeSpiderCrawler(CrawlSpider):
         story = story.replace('\n\t ','')
         story = story.replace('\t ','')
         story = story.replace('\n ','')
-        story = story.lower()
         
         tags = getTags(story)
+        story = story.lower()
         
 
         if len(items) > 0:
